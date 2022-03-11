@@ -9,20 +9,29 @@ class TokenExpiryException(Exception):
     def __init__(self, msg):
         super().__init__(msg)
 
-        
+
 class RefreshTokenException(Exception):
     def __init__(self, msg):
         super().__init__(msg)
-        
+
 
 class Token:
     def __init__(self, config):
         self._session = requests.Session()
         self._session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         self.config = config
+        self.proxies = self._get_proxies()
         self._retries = 5
         self._timeout = 10
         self.url = 'https://twitter.com'
+
+    def _get_proxies(self) -> dict:
+        if self.config.Proxy_type.lower() == "http":
+            return {
+                'http': "http://" + self.config.Proxy_host + ":" + str(self.config.Proxy_port),
+                'https': "http://" + self.config.Proxy_host + ":" + str(self.config.Proxy_port),
+            }
+        return {}  # 暂不支持其他代理
 
     def _request(self):
         for attempt in range(self._retries + 1):
@@ -30,7 +39,7 @@ class Token:
             req = self._session.prepare_request(requests.Request('GET', self.url))
             logme.debug(f'Retrieving {req.url}')
             try:
-                r = self._session.send(req, allow_redirects=True, timeout=self._timeout)
+                r = self._session.send(req, allow_redirects=True, timeout=self._timeout, proxies=self.proxies, verify=False)
             except requests.exceptions.RequestException as exc:
                 if attempt < self._retries:
                     retrying = ', retrying'
